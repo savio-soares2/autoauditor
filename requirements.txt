@@ -1,0 +1,6 @@
+# AutoAuditor – dependências Python
+django>=4.2
+bandit>=1.7
+pytest>=8.0
+pytest-django>=4.8
+pytest-json-report>=1.5
