@@ -1,0 +1,86 @@
+<!-- Coverage Matrix Panel -->
+<div class="bg-slate-900 rounded-2xl p-8 border border-slate-700/50 space-y-6"
+     style="box-shadow:0 4px 32px rgba(0,0,0,0.4)">
+
+  <h2 class="text-xl font-bold text-slate-100">Matriz de Cobertura</h2>
+
+  <!-- loading -->
+  <template x-if="loading">
+    <div class="space-y-3 animate-pulse">
+      <div class="h-24 bg-slate-800/60 rounded-xl"></div>
+      <div class="h-10 bg-slate-800/60 rounded-xl"></div>
+      <template x-for="i in [1,2,3,4,5]"><div class="h-12 bg-slate-800/60 rounded-xl"></div></template>
+    </div>
+  </template>
+
+  <!-- error -->
+  <template x-if="!loading && error">
+    <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-400" x-text="error"></div>
+  </template>
+
+  <template x-if="!loading && data">
+    <div class="space-y-5">
+
+      <!-- summary -->
+      <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-700/40 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-semibold text-slate-300">Cobertura geral</span>
+          <span class="text-2xl font-extrabold text-slate-100" x-text="pct + '%'"></span>
+        </div>
+        <div class="h-3 bg-slate-700 rounded-full overflow-hidden">
+          <div class="h-full rounded-full transition-all duration-700"
+               :class="parseFloat(pct) >= 80 ? 'bg-emerald-500' : parseFloat(pct) >= 50 ? 'bg-yellow-500' : 'bg-red-500'"
+               :style="'width:' + pct + '%'"
+               style="box-shadow:0 0 8px rgba(52,211,153,0.4)"></div>
+        </div>
+        <div class="flex gap-6 text-xs text-slate-500">
+          <span><span class="text-emerald-400 font-bold" x-text="covered"></span> cobertos</span>
+          <span><span class="text-red-400 font-bold" x-text="total - covered"></span> sem teste</span>
+          <span><span class="text-slate-300 font-bold" x-text="total"></span> total</span>
+        </div>
+      </div>
+
+      <!-- filters + search -->
+      <div class="flex items-center gap-3 flex-wrap">
+        <div class="flex gap-1">
+          <template x-for="f in [{id:'all',label:'Todos'},{id:'covered',label:'Cobertos'},{id:'uncovered',label:'Sem teste'}]" :key="f.id">
+            <button @click="filter = f.id"
+              :class="filter===f.id ? 'bg-brand-500/10 text-brand-400 border-brand-500/25' : 'bg-slate-800/50 text-slate-400 border-slate-700/50'"
+              class="px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors"
+              x-text="f.label">
+            </button>
+          </template>
+        </div>
+        <input x-model="search" placeholder="🔍  Buscar arquivo…"
+               class="flex-1 min-w-48 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-all" />
+      </div>
+
+      <!-- file list -->
+      <div class="space-y-1.5">
+        <template x-if="!files.length">
+          <div class="text-center py-12 text-slate-500 text-sm border border-slate-700/50 border-dashed rounded-xl">
+            Nenhum arquivo encontrado.
+          </div>
+        </template>
+        <template x-for="f in files" :key="f.path">
+          <div class="flex items-center justify-between px-4 py-3 rounded-lg border transition-all"
+               :class="statusClass(f)">
+            <div class="min-w-0 flex-1">
+              <div class="text-xs font-mono text-slate-200 truncate" x-text="f.path"></div>
+              <template x-if="f.test_files?.length">
+                <div class="text-xs text-slate-500 mt-0.5" x-text="'↳ ' + f.test_files.join(', ')"></div>
+              </template>
+            </div>
+            <div class="flex items-center gap-3 ml-4 shrink-0">
+              <span class="text-xs font-bold px-2 py-0.5 rounded border"
+                    :class="statusClass(f) + ' ' + statusText(f)"
+                    x-text="statusLabel(f)"></span>
+            </div>
+          </div>
+        </template>
+      </div>
+
+    </div>
+  </template>
+
+</div>

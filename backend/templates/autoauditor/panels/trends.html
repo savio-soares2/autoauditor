@@ -1,0 +1,36 @@
+<!-- Trends Panel -->
+<div class="bg-slate-900 rounded-2xl p-8 border border-slate-700/50 space-y-6"
+     style="box-shadow:0 4px 32px rgba(0,0,0,0.4)">
+
+  <h2 class="text-xl font-bold text-slate-100">Histórico &amp; Tendências</h2>
+
+  <!-- subtabs -->
+  <div class="flex gap-2 border-b border-slate-700/60">
+    <template x-for="t in tabs" :key="t.id">
+      <button @click="switchTab(t.id)"
+        :class="activeTab===t.id ? 'text-brand-400 border-b-2 border-brand-400' : 'text-slate-500 hover:text-slate-300 border-b-2 border-transparent'"
+        class="px-4 py-2.5 text-sm font-medium transition-colors -mb-px"
+        x-text="t.label">
+      </button>
+    </template>
+  </div>
+
+  <!-- loading -->
+  <template x-if="loading">
+    <div class="h-80 bg-slate-800/60 rounded-xl animate-pulse"></div>
+  </template>
+
+  <!-- chart -->
+  <template x-if="!loading">
+    <div class="relative" style="height:320px;">
+      <canvas id="trendChart"></canvas>
+      <!-- empty state -->
+      <template x-if="(activeTab==='health' && !healthData.length) || (activeTab!=='health' && !testData[activeTab]?.length)">
+        <div class="absolute inset-0 flex items-center justify-center text-slate-500 text-sm bg-slate-800/30 rounded-xl border border-slate-700/50 border-dashed">
+          Nenhum dado registrado ainda.
+        </div>
+      </template>
+    </div>
+  </template>
+
+</div>

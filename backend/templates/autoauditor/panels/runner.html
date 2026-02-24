@@ -1,0 +1,79 @@
+<!-- Test Runner Panel -->
+<div class="bg-slate-900 rounded-2xl p-8 border border-slate-700/50 space-y-6"
+     style="box-shadow:0 4px 32px rgba(0,0,0,0.4)">
+
+  <h2 class="text-xl font-bold text-slate-100">Executar Testes</h2>
+
+  <!-- tool selector -->
+  <div class="grid grid-cols-3 gap-3">
+    <template x-for="t in tools" :key="t">
+      <button @click="selected = t"
+        :class="toolBg(t)"
+        class="flex flex-col items-center gap-2 p-4 rounded-xl border transition-all font-semibold text-sm capitalize"
+        x-text="t">
+      </button>
+    </template>
+  </div>
+
+  <!-- config -->
+  <div class="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5 space-y-4">
+    <div>
+      <label class="block text-sm font-semibold text-slate-300 mb-1.5">Caminho do projeto</label>
+      <input x-model="config.path" type="text"
+             placeholder="C:\...\backend ou /app/backend"
+             class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50 transition-all" />
+    </div>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-semibold text-slate-300 mb-1.5">Args extras</label>
+        <input x-model="config.extraArgs" placeholder="ex: -v --tb=short"
+               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-all" />
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-slate-300 mb-1.5">Timeout (s)</label>
+        <input x-model="config.timeout" type="number" min="10" max="600"
+               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-all" />
+      </div>
+    </div>
+    <button @click="run()" :disabled="loading"
+      class="px-6 py-2.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors"
+      style="box-shadow:0 0 16px rgba(99,102,241,0.25)">
+      <span x-text="loading ? 'Executando…' : '▶ Executar'"></span>
+    </button>
+  </div>
+
+  <!-- error -->
+  <template x-if="error">
+    <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-400" x-text="error"></div>
+  </template>
+
+  <!-- result -->
+  <template x-if="result">
+    <div class="bg-slate-900 border border-slate-700/50 rounded-xl p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <span class="font-bold text-slate-100">Resultado</span>
+        <span :class="result.passed === result.total ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'"
+              class="text-xs font-bold px-3 py-1 rounded-full border"
+              x-text="result.passed + '/' + result.total + ' aprovados'"></span>
+      </div>
+      <div class="grid grid-cols-3 gap-4">
+        <div class="bg-slate-800/60 rounded-xl p-4 text-center">
+          <div class="text-2xl font-extrabold text-emerald-400" x-text="result.passed ?? 0"></div>
+          <div class="text-xs text-slate-500 mt-0.5">Aprovados</div>
+        </div>
+        <div class="bg-slate-800/60 rounded-xl p-4 text-center">
+          <div class="text-2xl font-extrabold text-red-400" x-text="result.failed ?? 0"></div>
+          <div class="text-xs text-slate-500 mt-0.5">Reprovados</div>
+        </div>
+        <div class="bg-slate-800/60 rounded-xl p-4 text-center">
+          <div class="text-2xl font-extrabold text-slate-300" x-text="(result.duration_s ?? 0).toFixed(1) + 's'"></div>
+          <div class="text-xs text-slate-500 mt-0.5">Duração</div>
+        </div>
+      </div>
+      <template x-if="result.output">
+        <pre class="bg-slate-950 border border-slate-800 rounded-lg p-4 text-xs font-mono text-slate-300 overflow-x-auto max-h-72 overflow-y-auto whitespace-pre-wrap" x-text="result.output"></pre>
+      </template>
+    </div>
+  </template>
+
+</div>

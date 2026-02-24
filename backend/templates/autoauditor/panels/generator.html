@@ -1,0 +1,100 @@
+<!-- Test Generator Panel -->
+<div class="bg-slate-900 rounded-2xl p-8 border border-slate-700/50 space-y-6"
+     style="box-shadow:0 4px 32px rgba(0,0,0,0.4)">
+
+  <h2 class="text-xl font-bold text-slate-100">Fábrica de Testes</h2>
+  <p class="text-slate-400 text-sm">Extraia a AST do arquivo Python e gere um prompt IA para criação de testes.</p>
+
+  <!-- form -->
+  <div class="space-y-4">
+    <div>
+      <label class="block text-sm font-semibold text-slate-300 mb-1.5">Arquivo Python *</label>
+      <div class="flex gap-3">
+        <input x-model="form.filePath" type="text"
+               placeholder="C:\...\backend\core\views.py"
+               @blur="parseAST()"
+               class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-all" />
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-semibold text-slate-300 mb-1.5">Framework de teste</label>
+        <select x-model="form.framework"
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-all">
+          <option value="pytest">Pytest</option>
+          <option value="unittest">Unittest</option>
+          <option value="vitest">Vitest</option>
+          <option value="jest">Jest</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-slate-300 mb-1.5">Estilo</label>
+        <select x-model="form.style"
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-all">
+          <option value="unit">Unit</option>
+          <option value="integration">Integration</option>
+          <option value="e2e">E2E</option>
+        </select>
+      </div>
+    </div>
+
+    <label class="flex items-center gap-3 cursor-pointer">
+      <input x-model="form.generateMocks" type="checkbox"
+             class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-brand-500" />
+      <span class="text-sm font-medium text-slate-300">Gerar mocks automaticamente</span>
+    </label>
+
+    <button @click="generate()" :disabled="loading"
+      class="px-6 py-2.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors"
+      style="box-shadow:0 0 16px rgba(99,102,241,0.25)">
+      <span x-text="loading ? 'Gerando…' : '🤖 Gerar Prompt'"></span>
+    </button>
+  </div>
+
+  <!-- AST preview -->
+  <template x-if="ast && !astLoading">
+    <div class="bg-slate-800/60 border border-slate-700/40 rounded-xl p-5 space-y-3">
+      <div class="text-sm font-bold text-slate-300">AST extraída</div>
+      <div class="flex flex-wrap gap-2">
+        <template x-for="cls in (ast.classes ?? [])" :key="cls">
+          <span class="px-2.5 py-1 text-xs font-mono font-semibold rounded-lg bg-brand-500/10 text-brand-400 border border-brand-500/20" x-text="cls"></span>
+        </template>
+      </div>
+      <div class="grid grid-cols-3 gap-3">
+        <div class="bg-slate-900 rounded-lg p-3 text-center">
+          <div class="text-xl font-extrabold text-slate-100" x-text="ast.functions ?? 0"></div>
+          <div class="text-xs text-slate-500">Funções</div>
+        </div>
+        <div class="bg-slate-900 rounded-lg p-3 text-center">
+          <div class="text-xl font-extrabold text-slate-100" x-text="ast.classes?.length ?? 0"></div>
+          <div class="text-xs text-slate-500">Classes</div>
+        </div>
+        <div class="bg-slate-900 rounded-lg p-3 text-center">
+          <div class="text-xl font-extrabold text-slate-100" x-text="ast.imports ?? 0"></div>
+          <div class="text-xs text-slate-500">Imports</div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- error -->
+  <template x-if="error">
+    <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-400" x-text="error"></div>
+  </template>
+
+  <!-- result prompt -->
+  <template x-if="result">
+    <div class="space-y-3">
+      <div class="flex items-center justify-between">
+        <span class="font-bold text-slate-100">Prompt gerado</span>
+        <button @click="copyPrompt()"
+          class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition-colors">
+          📋 Copiar
+        </button>
+      </div>
+      <pre class="bg-slate-950 border border-slate-800 rounded-xl p-5 text-xs font-mono text-slate-300 overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap" x-text="result.prompt ?? JSON.stringify(result, null, 2)"></pre>
+    </div>
+  </template>
+
+</div>

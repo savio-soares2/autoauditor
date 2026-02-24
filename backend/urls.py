@@ -30,6 +30,7 @@ from .views import (
     AuditFrontendView,
     CacheAuditView,
     CoverageMatrixView,
+    DashboardView,
     GenerateBatchView,
     GenerateTestView,
     ProjectHealthView,
@@ -43,6 +44,9 @@ from .views import (
 app_name = "autoauditor"
 
 urlpatterns = [
+    # ── Painel HTML ───────────────────────────────────────────────────────────
+    path("",         DashboardView.as_view(), name="dashboard"),
+
     # ── Health-check ──────────────────────────────────────────────────────────
     path("api/status/", StatusView.as_view(), name="status"),
 

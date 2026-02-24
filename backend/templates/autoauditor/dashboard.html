@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoAuditor – DevSecOps Dashboard</title>
+
+  <!-- Tailwind CDN with dark theme config -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 400:'#818cf8', 500:'#6366f1', 600:'#4f46e5' },
+          },
+          fontFamily: { mono: ['JetBrains Mono','Fira Code','ui-monospace','monospace'] },
+          boxShadow: { glow: '0 0 16px rgba(99,102,241,0.35)' },
+        }
+      }
+    }
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Alpine.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    [x-cloak] { display: none !important; }
+    body { background-color: #07091d; }
+    /* dot grid */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: radial-gradient(circle, rgba(99,102,241,0.08) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+    /* chart canvas */
+    canvas { max-width: 100%; }
+  </style>
+</head>
+
+<body class="min-h-screen flex font-sans text-slate-100 relative z-0">
+
+<!-- ═══════════════════════════════════════════════════════ SIDEBAR ═══ -->
+<div x-data="appShell()" x-cloak class="flex min-h-screen w-full">
+
+  <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-10 shrink-0"
+         style="box-shadow:4px 0 24px rgba(0,0,0,0.4)">
+    <!-- logo -->
+    <div class="p-6 border-b border-slate-800 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-brand-600 flex items-center justify-center text-white font-bold text-sm shadow-glow">AA</div>
+      <div>
+        <h1 class="text-slate-100 font-bold text-base leading-tight">AutoAuditor</h1>
+        <p class="text-slate-500 text-xs font-medium">DevSecOps Dashboard</p>
+      </div>
+    </div>
+
+    <!-- nav -->
+    <nav class="flex-1 overflow-y-auto py-4 px-3">
+      <ul class="space-y-0.5">
+        <template x-for="tab in tabs" :key="tab.id">
+          <li>
+            <button @click="active = tab.id"
+              :class="active === tab.id
+                ? 'bg-brand-500/10 text-brand-400 border border-brand-500/25'
+                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-transparent'"
+              class="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-3"
+              x-text="tab.label">
+            </button>
+          </li>
+        </template>
+      </ul>
+    </nav>
+
+    <div class="px-4 py-5 border-t border-slate-800">
+      <p class="text-slate-600 text-xs font-mono">v1.0 · AutoAuditor</p>
+    </div>
+  </aside>
+
+  <!-- ════════════════════════════════════════════ MAIN ══ -->
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+    <!-- header -->
+    <header class="bg-slate-900 border-b border-slate-800 px-8 py-4 flex items-center justify-between shrink-0"
+            style="box-shadow:0 2px 12px rgba(0,0,0,0.3)">
+      <div class="flex items-center gap-4">
+        <div class="w-1 h-8 rounded-full bg-brand-500" style="box-shadow:0 0 10px rgba(99,102,241,0.6)"></div>
+        <div>
+          <h2 class="text-slate-100 text-base font-bold leading-tight" x-text="tabs.find(t=>t.id===active)?.label ?? ''"></h2>
+          <p class="text-slate-500 text-xs">AutoAuditor · DevSecOps Dashboard</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 text-xs font-medium" x-data="headerTools()">
+        <span class="text-slate-500 mr-1">Ferramentas:</span>
+        <template x-for="t in tools" :key="t.name">
+          <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full border"
+                :class="t.ok ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'">
+            <span class="w-1.5 h-1.5 rounded-full"
+                  :class="t.ok ? 'bg-emerald-400' : 'bg-red-400'"
+                  style="box-shadow:0 0 4px currentColor"></span>
+            <span x-text="t.name"></span>
+          </span>
+        </template>
+      </div>
+    </header>
+
+    <!-- tab content -->
+    <main class="flex-1 overflow-y-auto p-8">
+      <div class="max-w-6xl mx-auto space-y-8">
+
+        <!-- ── Health Score ── -->
+        <div x-show="active === 'health'" x-data="healthPanel()">
+          {% include "autoauditor/panels/health.html" %}
+        </div>
+
+        <!-- ── Tendências ── -->
+        <div x-show="active === 'trends'" x-data="trendsPanel()">
+          {% include "autoauditor/panels/trends.html" %}
+        </div>
+
+        <!-- ── Executar Testes ── -->
+        <div x-show="active === 'runner'" x-data="runnerPanel()">
+          {% include "autoauditor/panels/runner.html" %}
+        </div>
+
+        <!-- ── Cobertura ── -->
+        <div x-show="active === 'matrix'" x-data="matrixPanel()">
+          {% include "autoauditor/panels/coverage.html" %}
+        </div>
+
+        <!-- ── Auditoria Django ── -->
+        <div x-show="active === 'audit-dj'" x-data="auditPanel('django')">
+          {% include "autoauditor/panels/audit.html" with audit_type="django" title="Auditoria de Segurança – Django (bandit)" placeholder="Caminho do backend Django" %}
+        </div>
+
+        <!-- ── Auditoria Frontend ── -->
+        <div x-show="active === 'audit-fe'" x-data="auditPanel('frontend')">
+          {% include "autoauditor/panels/audit.html" with audit_type="frontend" title="Auditoria de Segurança – Frontend (npm audit)" placeholder="Caminho do frontend React/Node" %}
+        </div>
+
+        <!-- ── Fábrica de Testes ── -->
+        <div x-show="active === 'test-gen'" x-data="generatorPanel()">
+          {% include "autoauditor/panels/generator.html" %}
+        </div>
+
+        <!-- ── Cache & Performance ── -->
+        <div x-show="active === 'cache'" x-data="cachePanel()">
+          {% include "autoauditor/panels/cache.html" %}
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ ALPINE CONTROLLERS ════════════════ -->
+<script>
+const API = {
+  status:   '/autoauditor/api/status/',
+  health:   '/autoauditor/api/health/',
+  histTests:'/autoauditor/api/history/tests/',
+  runTests: '/autoauditor/api/run/tests/',
+  runStream:'/autoauditor/api/run/stream/',
+  auditDj:  '/autoauditor/api/audit/django/',
+  auditFe:  '/autoauditor/api/audit/frontend/',
+  auditCache:'/autoauditor/api/audit/cache/',
+  generate: '/autoauditor/api/generate/test/',
+  genBatch: '/autoauditor/api/generate/batch/',
+  coverage: '/autoauditor/api/coverage/matrix/',
+};
+
+async function post(url, body) {
+  const r = await fetch(url, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken': getCookie('csrftoken')},
+    body: JSON.stringify(body),
+  });
+  return r.json();
+}
+async function get(url) {
+  const r = await fetch(url);
+  return r.json();
+}
+function getCookie(name) {
+  const m = document.cookie.match('(^|;)\\s*'+name+'\\s*=\\s*([^;]+)');
+  return m ? m.pop() : '';
+}
+
+// ── App shell ──────────────────────────────────────────────────────────────
+function appShell() {
+  return {
+    active: 'health',
+    tabs: [
+      { id:'health',    label:'❤️  Health Score'       },
+      { id:'trends',    label:'📈 Tendências'           },
+      { id:'runner',    label:'▶  Executar Testes'      },
+      { id:'matrix',    label:'🗺  Cobertura'           },
+      { id:'audit-dj',  label:'🐍 Auditoria Django'    },
+      { id:'audit-fe',  label:'📦 Auditoria Frontend'  },
+      { id:'test-gen',  label:'🤖 Fábrica de Testes'   },
+      { id:'cache',     label:'🗄  Cache & Performance' },
+    ],
+  };
+}
+
+// ── Header tools ───────────────────────────────────────────────────────────
+function headerTools() {
+  return {
+    tools: [],
+    async init() {
+      try {
+        const d = await get(API.status);
+        this.tools = Object.entries(d.tools || {}).map(([name,ok]) => ({name,ok}));
+      } catch {}
+    },
+  };
+}
+
+// ── Health Score panel ──────────────────────────────────────────────────────
+function healthPanel() {
+  return {
+    loading: true, data: null, error: null,
+    async init() {
+      try {
+        this.data = await get(API.health);
+      } catch(e) { this.error = e.message; }
+      finally { this.loading = false; }
+    },
+    async recalc() {
+      this.loading = true; this.error = null;
+      try { this.data = await post(API.health, {}); }
+      catch(e) { this.error = e.message; }
+      finally { this.loading = false; }
+    },
+    get score()  { return this.data?.score ?? 0; },
+    get grade()  { return this.data?.grade ?? '–'; },
+    gradeColor() {
+      const g = this.grade;
+      if (g === 'A') return 'text-emerald-400';
+      if (g === 'B') return 'text-sky-400';
+      if (g === 'C') return 'text-yellow-400';
+      return 'text-red-400';
+    },
+    gradeShadow() {
+      const g = this.grade;
+      if (g === 'A') return '0 0 20px rgba(52,211,153,0.4)';
+      if (g === 'B') return '0 0 20px rgba(56,189,248,0.4)';
+      if (g === 'C') return '0 0 20px rgba(251,191,36,0.4)';
+      return '0 0 20px rgba(248,113,113,0.4)';
+    },
+    metrics() {
+      if (!this.data) return [];
+      return [
+        { label:'Taxa de Testes',   value: (this.data.test_pass_rate ?? 0).toFixed(1) + '%', sub:'aprovados', color:'text-sky-400' },
+        { label:'Score Segurança',  value: (this.data.security_score ?? 0).toFixed(1),        sub:'/ 100',    color:'text-amber-400' },
+        { label:'Cobertura',        value: (this.data.coverage_pct ?? 0).toFixed(1) + '%',    sub:'arquivos', color:'text-violet-400' },
+        { label:'Issues Críticos',  value: this.data.critical_issues ?? 0,                    sub:'pendentes',color:'text-red-400' },
+      ];
+    },
+    suites() {
+      return this.data?.suites ?? this.data?.test_suites ?? [];
+    },
+  };
+}
+
+// ── Trends/Chart panel ─────────────────────────────────────────────────────
+function trendsPanel() {
+  return {
+    loading: true, activeTab: 'health',
+    healthData: [], testData: { pytest:[], vitest:[], playwright:[] },
+    chart: null,
+    tabs: [
+      { id:'health',     label:'Health Score' },
+      { id:'pytest',     label:'Pytest' },
+      { id:'vitest',     label:'Vitest' },
+      { id:'playwright', label:'Playwright' },
+    ],
+    async init() {
+      try {
+        const [hRes, tRes] = await Promise.all([
+          get(API.health + '?limit=60'),
+          get(API.histTests + '?limit=60'),
+        ]);
+        const hist = hRes.history || [];
+        this.healthData = hist.map(h => ({
+          date:  new Date(h.created_at).toLocaleDateString('pt-BR'),
+          score: h.score,
+          testes: h.test_pass_rate,
+          seg:   h.security_score,
+        }));
+        const runs = tRes.results || [];
+        const mapRun = type => runs.filter(r=>r.run_type===type).reverse().map(r=>({
+          date: new Date(r.created_at).toLocaleDateString('pt-BR'),
+          pass_rate: r.pass_rate,
+        }));
+        this.testData = { pytest: mapRun('pytest'), vitest: mapRun('vitest'), playwright: mapRun('playwright') };
+      } catch {}
+      finally { this.loading = false; this.$nextTick(() => this.renderChart()); }
+    },
+    switchTab(id) { this.activeTab = id; this.$nextTick(() => this.renderChart()); },
+    renderChart() {
+      const canvas = document.getElementById('trendChart');
+      if (!canvas) return;
+      if (this.chart) { this.chart.destroy(); this.chart = null; }
+      const ctx = canvas.getContext('2d');
+      const gridColor = '#1e293b', tickColor = '#64748b';
+      const tooltipStyles = { backgroundColor:'#0f172a', borderColor:'#334155', borderWidth:1, titleColor:'#e2e8f0', bodyColor:'#94a3b8' };
+      if (this.activeTab === 'health') {
+        const labels = this.healthData.map(d=>d.date);
+        this.chart = new Chart(ctx, { type:'line', data:{
+          labels,
+          datasets:[
+            { label:'Health Score',    data:this.healthData.map(d=>d.score),  borderColor:'#0ea5e9', tension:0.4, pointRadius:0, borderWidth:2 },
+            { label:'Taxa de Testes %',data:this.healthData.map(d=>d.testes), borderColor:'#818cf8', tension:0.4, pointRadius:0, borderWidth:2 },
+            { label:'Seg. Score',      data:this.healthData.map(d=>d.seg),    borderColor:'#22c55e', tension:0.4, pointRadius:0, borderWidth:2 },
+          ]
+        }, options: chartOptions(gridColor, tickColor, tooltipStyles) });
+      } else {
+        const src = this.testData[this.activeTab] || [];
+        this.chart = new Chart(ctx, { type:'line', data:{
+          labels: src.map(d=>d.date),
+          datasets:[{ label:'Pass Rate %', data:src.map(d=>d.pass_rate), borderColor:'#6366f1', tension:0.4, pointRadius:3, borderWidth:2 }]
+        }, options: chartOptions(gridColor, tickColor, tooltipStyles) });
+      }
+    },
+  };
+}
+function chartOptions(grid, tick, tooltip) {
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ labels:{ color:'#94a3b8', font:{size:12} } }, tooltip },
+    scales:{
+      x:{ grid:{color:grid}, ticks:{color:tick, font:{size:11}} },
+      y:{ min:0, max:100, grid:{color:grid}, ticks:{color:tick, font:{size:11}} },
+    },
+  };
+}
+
+// ── Test Runner ────────────────────────────────────────────────────────────
+function runnerPanel() {
+  return {
+    loading: false, error: null, result: null,
+    tools: ['pytest','vitest','playwright'],
+    selected: 'pytest',
+    config: { path:'', extraArgs:'', timeout:120 },
+    output: [],
+    streaming: false,
+    async run() {
+      this.loading = true; this.error = null; this.result = null; this.output = [];
+      try {
+        const body = { tool:this.selected, path:this.config.path, extra_args:this.config.extraArgs, timeout:parseInt(this.config.timeout)||120 };
+        const d = await post(API.runTests, body);
+        if (d.error) { this.error = d.error; }
+        else { this.result = d; }
+      } catch(e) { this.error = e.message; }
+      finally { this.loading = false; }
+    },
+    toolColor(t) {
+      return { pytest:'text-sky-400', vitest:'text-violet-400', playwright:'text-amber-400' }[t] ?? 'text-slate-400';
+    },
+    toolBg(t) {
+      const on = this.selected === t;
+      return on ? { pytest:'bg-sky-500/10 border-sky-500/30 text-sky-400', vitest:'bg-violet-500/10 border-violet-500/30 text-violet-400', playwright:'bg-amber-500/10 border-amber-500/30 text-amber-400' }[t]
+                : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:border-slate-600';
+    },
+  };
+}
+
+// ── Coverage Matrix ────────────────────────────────────────────────────────
+function matrixPanel() {
+  return {
+    loading: true, data: null, error: null, filter: 'all', search: '',
+    async init() {
+      try { this.data = await get(API.coverage); }
+      catch(e) { this.error = e.message; }
+      finally { this.loading = false; }
+    },
+    get files() {
+      const all = this.data?.files ?? [];
+      return all.filter(f => {
+        const matchFilter = this.filter === 'all' || (this.filter === 'covered' ? f.covered : !f.covered);
+        const matchSearch = !this.search || f.path?.toLowerCase().includes(this.search.toLowerCase());
+        return matchFilter && matchSearch;
+      });
+    },
+    get covered()   { return (this.data?.files ?? []).filter(f=>f.covered).length; },
+    get total()     { return (this.data?.files ?? []).length; },
+    get pct()       { return this.total ? ((this.covered/this.total)*100).toFixed(1) : '0.0'; },
+    statusClass(f)  { return f.covered ? 'bg-emerald-500/5 border-emerald-500/15' : 'bg-red-500/5 border-red-500/15'; },
+    statusText(f)   { return f.covered ? 'text-emerald-400' : 'text-red-400'; },
+    statusLabel(f)  { return f.covered ? 'Coberto' : 'Sem teste'; },
+  };
+}
+
+// ── Audit panel (django + frontend) ───────────────────────────────────────
+function auditPanel(type) {
+  return {
+    loading: false, error: null, result: null, path: '',
+    endpoint: type === 'django' ? API.auditDj : API.auditFe,
+    async run() {
+      if (!this.path.trim()) { this.error = 'Caminho obrigatório.'; return; }
+      this.loading = true; this.error = null; this.result = null;
+      try {
+        const d = await post(this.endpoint, { path: this.path.trim() });
+        if (d.error) this.error = d.error;
+        else this.result = d;
+      } catch(e) { this.error = e.message; }
+      finally { this.loading = false; }
+    },
+    severityClass(sev) {
+      return { high:'bg-red-500/10 text-red-400 border-red-500/20', medium:'bg-yellow-500/10 text-yellow-400 border-yellow-500/20', low:'bg-sky-500/10 text-sky-400 border-sky-500/20' }[sev?.toLowerCase()] ?? 'bg-slate-700 text-slate-400 border-slate-600';
+    },
+    issues()   { return this.result?.issues ?? []; },
+    summary()  { return this.result?.summary ?? {}; },
+  };
+}
+
+// ── Test Generator ─────────────────────────────────────────────────────────
+function generatorPanel() {
+  return {
+    loading: false, error: null, result: null,
+    form: { filePath:'', framework:'pytest', style:'unit', generateMocks:false },
+    ast: null, astLoading: false,
+    async parseAST() {
+      if (!this.form.filePath.trim()) return;
+      this.astLoading = true;
+      try {
+        const d = await post(API.generate, { file_path:this.form.filePath, parse_only:true });
+        this.ast = d;
+      } catch {}
+      finally { this.astLoading = false; }
+    },
+    async generate() {
+      if (!this.form.filePath.trim()) { this.error = 'Arquivo obrigatório.'; return; }
+      this.loading = true; this.error = null; this.result = null;
+      try {
+        const d = await post(API.generate, {
+          file_path: this.form.filePath,
+          framework: this.form.framework,
+          style:     this.form.style,
+          generate_mocks: this.form.generateMocks,
+        });
+        if (d.error) this.error = d.error;
+        else this.result = d;
+      } catch(e) { this.error = e.message; }
+      finally { this.loading = false; }
+    },
+    async copyPrompt() {
+      if (this.result?.prompt) await navigator.clipboard.writeText(this.result.prompt);
+    },
+  };
+}
+
+// ── Cache Audit ────────────────────────────────────────────────────────────
+function cachePanel() {
+  return {
+    sub: 'static',
+    subtabs: [
+      { id:'static',  label:'🔍 Auditoria Estática (AST)' },
+      { id:'dynamic', label:'⚡ Probe Dinâmico' },
+    ],
+    // static
+    staticPath: '', staticLoading: false, staticError: null, staticData: null,
+    async runStatic() {
+      this.staticLoading = true; this.staticError = null; this.staticData = null;
+      try {
+        const params = this.staticPath.trim() ? '?path=' + encodeURIComponent(this.staticPath.trim()) : '';
+        this.staticData = await get(API.auditCache + params);
+      } catch(e) { this.staticError = e.message; }
+      finally { this.staticLoading = false; }
+    },
+    staticFiles() { return this.staticData?.results ?? (this.staticData ? [this.staticData] : []); },
+    // dynamic
+    probe: { url:'', token:'', extra_headers:'', mutation_method:'POST', mutation_url:'', mutation_payload:'', timeout_s:'10' },
+    probeLoading: false, probeError: null, probeReport: null,
+    async runProbe() {
+      if (!this.probe.url.trim()) { this.probeError = 'URL obrigatória.'; return; }
+      if (!this.probe.token.trim()) { this.probeError = 'Token obrigatório.'; return; }
+      this.probeLoading = true; this.probeError = null; this.probeReport = null;
+      try {
+        let extra_headers = {};
+        if (this.probe.extra_headers.trim()) extra_headers = JSON.parse(this.probe.extra_headers);
+        let mutation_payload = {};
+        if (this.probe.mutation_payload.trim()) mutation_payload = JSON.parse(this.probe.mutation_payload);
+        const d = await post(API.auditCache, {
+          url: this.probe.url, token: this.probe.token,
+          mutation_method: this.probe.mutation_method,
+          mutation_url: this.probe.mutation_url || undefined,
+          extra_headers, mutation_payload,
+          timeout_s: parseFloat(this.probe.timeout_s) || 10,
+        });
+        if (d.error) this.probeError = d.error;
+        else this.probeReport = d.report;
+      } catch(e) { this.probeError = e.message; }
+      finally { this.probeLoading = false; }
+    },
+    passClass(ok)  { return ok ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'; },
+    passLabel(ok)  { return ok ? '✓ ok' : '✗ falhou'; },
+    cacheClass(v)  {
+      return { HIT:'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', MISS:'bg-yellow-500/10 text-yellow-400 border-yellow-500/20', BYPASS:'bg-slate-700/50 text-slate-400 border-slate-600', NONE:'bg-slate-800 text-slate-600 border-slate-700' }[v] ?? 'bg-slate-700 text-slate-400 border-slate-600';
+    },
+    statusClass(s) {
+      return { healthy:'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', warning:'bg-yellow-500/10 text-yellow-400 border-yellow-500/20', critical:'bg-red-500/10 text-red-400 border-red-500/20' }[s] ?? 'bg-slate-700 text-slate-400 border-slate-600';
+    },
+  };
+}
+</script>
+
+</body>
+</html>

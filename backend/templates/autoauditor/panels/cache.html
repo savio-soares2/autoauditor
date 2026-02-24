@@ -1,0 +1,292 @@
+<!-- Cache & Performance Panel -->
+<div class="bg-slate-900 rounded-2xl p-8 border border-slate-700/50 space-y-6"
+     style="box-shadow:0 4px 32px rgba(0,0,0,0.4)">
+
+  <h2 class="text-2xl font-bold text-slate-100">Cache &amp; Performance</h2>
+  <p class="text-slate-400 text-sm">Analise a configuração de cache ou execute testes dinâmicos de invalidação.</p>
+
+  <!-- subtabs -->
+  <div class="flex gap-2 border-b border-slate-700/60">
+    <template x-for="t in subtabs" :key="t.id">
+      <button @click="sub = t.id"
+        :class="sub===t.id ? 'text-brand-400 border-b-2 border-brand-400' : 'text-slate-500 hover:text-slate-300 border-b-2 border-transparent'"
+        class="px-5 py-2.5 text-sm font-semibold transition-colors -mb-px"
+        x-text="t.label">
+      </button>
+    </template>
+  </div>
+
+  <!-- ── Static audit ───────────────────────────────────────────── -->
+  <div x-show="sub === 'static'" class="space-y-5">
+    <div class="flex gap-3 items-end flex-wrap">
+      <div class="flex-1 min-w-64">
+        <label class="block text-sm font-semibold text-slate-300 mb-1.5">
+          Arquivo específico <span class="text-slate-500 font-normal">(vazio = varrer projeto todo)</span>
+        </label>
+        <input x-model="staticPath" type="text"
+               placeholder="ex: C:\...\backend\core\views.py"
+               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-all" />
+      </div>
+      <button @click="runStatic()" :disabled="staticLoading"
+        class="px-6 py-2.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors"
+        style="box-shadow:0 0 16px rgba(99,102,241,0.25)">
+        <span x-text="staticLoading ? 'Analisando…' : 'Analisar'"></span>
+      </button>
+    </div>
+
+    <template x-if="staticError">
+      <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-400" x-text="staticError"></div>
+    </template>
+
+    <template x-if="staticData">
+      <div class="space-y-4">
+        <!-- summary -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div class="bg-slate-900 border border-slate-700/50 rounded-xl p-4 text-center">
+            <div class="text-3xl font-extrabold text-slate-100" x-text="staticData.files_scanned ?? 1"></div>
+            <div class="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wide">Arquivos varridos</div>
+          </div>
+          <div class="bg-slate-900 border border-slate-700/50 rounded-xl p-4 text-center">
+            <div class="text-3xl font-extrabold text-slate-100" x-text="staticData.summary?.total_viewsets ?? staticData.viewsets_found ?? '–'"></div>
+            <div class="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wide">ViewSets</div>
+          </div>
+          <div class="bg-slate-900 border border-slate-700/50 rounded-xl p-4 text-center">
+            <div class="text-3xl font-extrabold text-slate-100" x-text="staticData.summary?.viewsets_with_cache_mixin ?? '–'"></div>
+            <div class="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wide">Com mixin</div>
+          </div>
+          <div class="bg-slate-900 border border-slate-700/50 rounded-xl p-4 text-center">
+            <div class="text-3xl font-extrabold text-red-400" x-text="staticData.summary?.viewsets_with_issues ?? 0"></div>
+            <div class="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wide">Com pendências</div>
+          </div>
+        </div>
+
+        <!-- status geral -->
+        <div class="flex items-center gap-3 text-sm font-medium text-slate-400 bg-slate-800/50 p-3 rounded-lg border border-slate-700/50 w-fit">
+          <span>Status geral:</span>
+          <span class="px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide border"
+                :class="statusClass(staticData.summary?.overall_status ?? staticData.overall_status)"
+                x-text="staticData.summary?.overall_status ?? staticData.overall_status ?? '–'"></span>
+        </div>
+
+        <!-- viewset matrix -->
+        <template x-for="fileResult in staticFiles()" :key="fileResult.file">
+          <div class="bg-slate-900 border border-slate-700/50 rounded-xl overflow-hidden">
+            <div class="px-5 py-3 bg-slate-800/50 border-b border-slate-700/50 text-sm text-slate-400 font-mono font-semibold truncate"
+                 x-text="fileResult.file"></div>
+            <template x-if="!fileResult.viewsets?.length">
+              <p class="p-5 text-sm text-slate-500">Nenhum ViewSet encontrado.</p>
+            </template>
+            <template x-if="fileResult.viewsets?.length">
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                  <thead class="text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-700/50 bg-slate-900">
+                    <tr>
+                      <th class="px-5 py-3">ViewSet</th>
+                      <th class="text-center px-4 py-3">Mixin</th>
+                      <th class="px-5 py-3">Métodos de escrita</th>
+                      <th class="text-center px-4 py-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-800">
+                    <template x-for="vs in fileResult.viewsets" :key="vs.name">
+                      <tr class="hover:bg-slate-800/40 transition-colors">
+                        <td class="px-5 py-3 font-mono font-medium text-slate-200" x-text="vs.name"></td>
+                        <td class="px-4 py-3 text-center">
+                          <span :class="vs.cache_mixin_present ? 'text-emerald-400' : 'text-red-400'" class="font-bold text-lg"
+                                x-text="vs.cache_mixin_present ? '✓' : '✗'"></span>
+                        </td>
+                        <td class="px-5 py-3">
+                          <div class="flex flex-wrap gap-1.5">
+                            <template x-for="m in (vs.write_methods ?? [])" :key="m.method">
+                              <span class="px-2 py-1 rounded-md text-xs font-mono font-semibold border"
+                                    :class="m.needs_attention ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-slate-700/50 text-slate-300 border-slate-600'"
+                                    x-text="m.method + (m.covered_by_mixin ? ' 🛡' : '') + (m.needs_attention ? ' ⚠' : '')"></span>
+                            </template>
+                          </div>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                          <span class="px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide border"
+                                :class="statusClass(vs.status)" x-text="vs.status ?? '–'"></span>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+            <template x-if="fileResult.viewsets?.some(v => v.issues?.length)">
+              <div class="px-5 py-4 bg-yellow-500/5 border-t border-yellow-500/15 text-sm text-yellow-400 space-y-2">
+                <div class="font-bold">⚠ Ações sem invalidação de cache:</div>
+                <template x-for="v in fileResult.viewsets.filter(v=>v.issues?.length)" :key="v.name">
+                  <div class="text-sm">
+                    <span class="font-mono font-semibold text-yellow-300" x-text="v.name"></span>
+                    <span> → </span>
+                    <span x-text="v.issues.join(', ')"></span>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+    </template>
+  </div>
+
+  <!-- ── Dynamic Probe ──────────────────────────────────────────── -->
+  <div x-show="sub === 'dynamic'" class="space-y-5">
+    <div class="bg-slate-900 border border-slate-700/50 rounded-xl p-6 space-y-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-semibold text-slate-300 mb-1.5">URL do endpoint (GET de listagem) *</label>
+          <input x-model="probe.url" type="text"
+                 placeholder="http://localhost:8000/api/recurso/"
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-all" />
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-300 mb-1.5">Token de autorização *</label>
+          <input x-model="probe.token" type="password"
+                 placeholder="Bearer token ou API key"
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-all" />
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-300 mb-1.5">Extra headers (JSON)</label>
+          <input x-model="probe.extra_headers"
+                 placeholder='{"X-Header": "valor"}'
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-all" />
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-300 mb-1.5">Método da mutação</label>
+          <select x-model="probe.mutation_method"
+                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/50">
+            <option>POST</option><option>PATCH</option><option>PUT</option><option>DELETE</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-300 mb-1.5">URL da mutação <span class="text-slate-500 font-normal">(padrão: mesma URL)</span></label>
+          <input x-model="probe.mutation_url"
+                 placeholder="http://localhost:8000/api/recurso/"
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-all" />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-semibold text-slate-300 mb-1.5">Payload da mutação (JSON)</label>
+          <textarea x-model="probe.mutation_payload" rows="3"
+                    placeholder='{"campo": "valor"}'
+                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-all resize-y"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-300 mb-1.5">Timeout (s)</label>
+          <input x-model="probe.timeout_s" type="number" min="1" max="60"
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/50" />
+        </div>
+      </div>
+      <div class="pt-2 border-t border-slate-800">
+        <button @click="runProbe()" :disabled="probeLoading"
+          class="px-8 py-3 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors"
+          style="box-shadow:0 0 16px rgba(99,102,241,0.3)">
+          <span x-text="probeLoading ? 'Executando probe…' : '▶ Executar Probe de Cache'"></span>
+        </button>
+      </div>
+    </div>
+
+    <template x-if="probeError">
+      <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-400" x-text="probeError"></div>
+    </template>
+
+    <template x-if="probeReport">
+      <div class="space-y-5">
+        <!-- overall -->
+        <div class="rounded-xl border p-6 flex flex-wrap gap-8 items-center"
+             :class="probeReport.overall_passed ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-red-500/20 bg-red-500/5'">
+          <div>
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Resultado geral</div>
+            <div class="text-2xl font-extrabold"
+                 :class="probeReport.overall_passed ? 'text-emerald-400' : 'text-red-400'"
+                 x-text="probeReport.overall_passed ? '✓ PASSOU' : '✗ FALHOU'"></div>
+          </div>
+          <div class="w-px h-12 bg-slate-700 hidden sm:block"></div>
+          <template x-for="metric in [
+            {label:'Cache aquecido',          value: passLabel(probeReport.warmup_ok),         cls: passClass(probeReport.warmup_ok)},
+            {label:'Invalidação confirmada',  value: passLabel(probeReport.invalidation_ok),   cls: passClass(probeReport.invalidation_ok)},
+            {label:'Speedup (frio/quente)',   value: probeReport.speedup_ratio + '×',          cls: 'text-slate-100 font-mono font-bold text-lg'},
+            {label:'p50 GET',                 value: probeReport.latency_p50_ms + ' ms',       cls: 'text-slate-100 font-mono font-bold text-lg'},
+            {label:'p95 GET',                 value: probeReport.latency_p95_ms + ' ms',       cls: 'text-slate-100 font-mono font-bold text-lg'},
+          ]" :key="metric.label">
+            <div>
+              <div class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1" x-text="metric.label"></div>
+              <div :class="metric.cls" x-text="metric.value"></div>
+            </div>
+          </template>
+        </div>
+
+        <!-- steps table -->
+        <div class="bg-slate-900 border border-slate-700/50 rounded-xl overflow-hidden">
+          <div class="px-5 py-4 bg-slate-800/50 border-b border-slate-700/50 text-xs text-slate-500 font-bold uppercase tracking-wider">
+            Detalhes dos 4 passos
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+              <thead class="text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-700/50 bg-slate-900">
+                <tr>
+                  <th class="text-center px-4 py-3">Passo</th>
+                  <th class="text-center px-4 py-3">Método</th>
+                  <th class="text-center px-4 py-3">HTTP</th>
+                  <th class="text-center px-4 py-3">X-API-Cache</th>
+                  <th class="text-center px-4 py-3">Esperado</th>
+                  <th class="text-right px-5 py-3">Latência</th>
+                  <th class="text-center px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800">
+                <template x-for="step in probeReport.steps" :key="step.step">
+                  <tr class="hover:bg-slate-800/40 transition-colors">
+                    <td class="text-center px-4 py-3 font-bold text-slate-400" x-text="step.step"></td>
+                    <td class="text-center px-4 py-3 font-mono text-xs font-semibold text-slate-400" x-text="step.method"></td>
+                    <td class="text-center px-4 py-3">
+                      <span class="font-mono font-bold"
+                            :class="step.status_code >= 400 ? 'text-red-400' : 'text-slate-300'"
+                            x-text="step.status_code || '–'"></span>
+                    </td>
+                    <td class="text-center px-4 py-3">
+                      <span class="px-2 py-0.5 rounded text-xs font-mono font-bold border"
+                            :class="cacheClass(step.cache_status)" x-text="step.cache_status ?? '–'"></span>
+                    </td>
+                    <td class="text-center px-4 py-3">
+                      <template x-if="step.expected_cache">
+                        <span class="px-2 py-0.5 rounded text-xs font-mono font-bold border"
+                              :class="cacheClass(step.expected_cache)" x-text="step.expected_cache"></span>
+                      </template>
+                      <template x-if="!step.expected_cache">
+                        <span class="text-slate-600 text-xs italic">–</span>
+                      </template>
+                    </td>
+                    <td class="text-right px-5 py-3 font-mono text-xs font-semibold text-slate-400"
+                        x-text="step.latency_ms > 0 ? step.latency_ms + ' ms' : '–'"></td>
+                    <td class="text-center px-4 py-3">
+                      <span :class="passClass(step.passed)" x-text="passLabel(step.passed)"></span>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+          <template x-if="probeReport.steps?.some(s => s.note)">
+            <div class="px-5 py-4 bg-yellow-500/5 border-t border-yellow-500/15 text-sm text-yellow-400 space-y-1.5">
+              <template x-for="s in probeReport.steps.filter(s=>s.note)" :key="s.step">
+                <div class="flex gap-2">
+                  <span class="font-bold" x-text="'Passo ' + s.step + ':'"></span>
+                  <span x-text="s.note"></span>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+
+        <template x-if="probeReport.error">
+          <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-400"
+               x-text="'Erro: ' + probeReport.error"></div>
+        </template>
+      </div>
+    </template>
+  </div>
+
+</div>
