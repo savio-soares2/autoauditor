@@ -7,8 +7,8 @@ echo  ATENCAO: Ajuste as variaveis abaixo antes de usar.
 echo.
 
 rem --- Edite aqui ---
-set DJANGO_PROJECT=C:\caminho\para\seu\projeto\django
-set DJANGO_VENV=C:\caminho\para\seu\venv
+set DJANGO_PROJECT=C:\Users\savii\Documents\RH\rh\backend
+set DJANGO_VENV=%DJANGO_PROJECT%\venv
 rem ------------------
 
 echo [1/1] Backend Django (porta 8000)...
