@@ -24,6 +24,7 @@ import tempfile
 from pathlib import Path
 
 from django.http import JsonResponse
+from django.shortcuts import render
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
@@ -358,6 +359,71 @@ class GenerateTestView(View):
             return JsonResponse({"success": False, "error": f"Erro de sintaxe: {exc}"}, status=422)
         except Exception as exc:
             return JsonResponse({"success": False, "error": str(exc)}, status=500)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class GenerateBatchView(View):
+    """
+    POST /autoauditor/api/generate/batch/
+
+    Body JSON:
+        {
+            "file_paths": ["/abs/path/models.py", "/abs/path/views.py"],
+            "framework": "django" | "generic"    // default: "django"
+        }
+
+    Processa múltiplos arquivos .py de uma vez e retorna um prompt
+    consolidado por arquivo — ideal para colar em uma sessão de IA.
+    """
+
+    def post(self, request):
+        body = _json_body(request)
+        file_paths = body.get("file_paths", [])
+        framework = body.get("framework", "django")
+
+        if not file_paths or not isinstance(file_paths, list):
+            return JsonResponse({
+                "success": False,
+                "error": "Campo `file_paths` deve ser uma lista não-vazia.",
+            }, status=400)
+
+        results = []
+        errors = []
+
+        for fp in file_paths:
+            fp = str(fp).strip()
+            if not fp.endswith(".py"):
+                errors.append({"file": fp, "error": "Apenas arquivos .py são suportados."})
+                continue
+
+            target = Path(fp)
+            if not target.exists():
+                errors.append({"file": fp, "error": f"Arquivo não encontrado: {fp}"})
+                continue
+
+            try:
+                skeleton = parse_file(target)
+                prompt = skeleton_to_prompt(skeleton, framework=framework)
+                results.append({
+                    "file": str(target),
+                    "summary": {
+                        "classes": len(skeleton.classes),
+                        "top_level_functions": len(skeleton.top_level_functions),
+                        "imports": len(skeleton.imports),
+                        "class_names": [cls.name for cls in skeleton.classes],
+                    },
+                    "prompt": prompt,
+                })
+            except Exception as exc:
+                errors.append({"file": fp, "error": str(exc)})
+
+        return JsonResponse({
+            "success": True,
+            "processed": len(results),
+            "failed": len(errors),
+            "results": results,
+            "errors": errors,
+        })
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -926,3 +992,12 @@ class CoverageMatrixView(View):
             "uncovered": [{"path": e.path, "language": e.language} for e in matrix.uncovered],
             "covered":   [{"path": e.path, "language": e.language, "test_file": e.test_file} for e in matrix.covered],
         })
+
+
+# ── Dashboard HTML ────────────────────────────────────────────────────────────────────────
+
+class DashboardView(View):
+    """Serve o painel AutoAuditor como template Django (sem Node/Vite)."""
+
+    def get(self, request):
+        return render(request, "autoauditor/dashboard.html")
